@@ -2,7 +2,7 @@ import csv
 
 from tabulate import tabulate
 
-from settings.configs import (AGGREGATE_ARG, FILTER_ARG,
+from settings.configs import (AGGREGATE_ARG, FILE_ARG, FILTER_ARG,
                               configure_argument_parser)
 from settings.constants import (AGGREGATE_OPERATORS, AGGREGATE_OPERATORS_MAP,
                                 CONDITION_SPLITTER, ENCODING_TYPE,
@@ -25,7 +25,7 @@ def load_csv(path: str) -> list[dict[str, str]]:
     try:
         with open(path, encoding=ENCODING_TYPE) as file:
             reader = csv.DictReader(file)
-            if reader.fieldnames is None:
+            if not reader.fieldnames:
                 raise DataValidationError(FIELDNAMES_ERROR.format(path=path))
             rows = list(reader)
             if not rows:
@@ -95,6 +95,10 @@ def aggregate_rows(
 def main() -> None:
     try:
         args = configure_argument_parser().parse_args()
+        if args.file is None:
+            raise DataValidationError(
+                CONDITION_ERROR.format(condition=FILE_ARG)
+            )
         where = args.where
         aggregate = args.aggregate
         rows = load_csv(args.file)
