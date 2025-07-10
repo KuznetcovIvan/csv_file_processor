@@ -1,10 +1,10 @@
-from pytest import raises
+from pytest import mark, raises
 
 from main import load_csv
 from settings.exception import ConfigurationError, DataValidationError
 
 
-def test_load_complete_csv_file(complete_csv_file, sample_rows):
+def test_load_valid_csv_file(complete_csv_file, sample_rows):
     """Тестирование загрузки корректного CSV-файла."""
     rows = load_csv(complete_csv_file)
     assert len(rows) == len(sample_rows), (
@@ -21,19 +21,14 @@ def test_load_complete_csv_file(complete_csv_file, sample_rows):
     )
 
 
-def test_load_csv_empty_body(empty_body_csv_file):
-    """Тестирование загрузки CSV-файла без данных."""
-    with raises(DataValidationError):
-        load_csv(empty_body_csv_file)
-
-
-def test_load_csv_no_fieldnames(empty_field_names_csv_file):
-    """Тестирование загрузки CSV-файла без заголовков."""
-    with raises(DataValidationError):
-        load_csv(empty_field_names_csv_file)
-
-
-def test_load_csv_file_not_found():
-    """Тестирование загрузки несуществующего файла."""
-    with raises(ConfigurationError):
-        load_csv('not_exist.csv')
+@mark.parametrize('csv_file,expected_exception', [
+    ('empty_body_csv_file', DataValidationError),
+    ('empty_field_names_csv_file', DataValidationError),
+    ('not_exist.csv', ConfigurationError)
+])
+def test_load_csv_error_cases(csv_file, expected_exception, request):
+    """Тестирование ошибочных случаев загрузки CSV-файла."""
+    if csv_file != 'not_exist.csv':
+        csv_file = request.getfixturevalue(csv_file)
+    with raises(expected_exception):
+        load_csv(csv_file)

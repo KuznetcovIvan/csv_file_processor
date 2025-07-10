@@ -1,4 +1,4 @@
-from pytest import raises
+from pytest import mark, raises
 
 from main import aggregate_rows
 from settings.exception import ConfigurationError, DataValidationError
@@ -6,46 +6,36 @@ from settings.exception import ConfigurationError, DataValidationError
 RESULT_MESSAGE = 'Неверный результат агрегирования с оператором '
 
 
-def test_aggregate_rows_avg(sample_rows):
-    """Тестирование агрегации с оператором 'avg'."""
-    assert round(aggregate_rows(
-        sample_rows, 'age=avg'
-    )[0]['avg'], 1) == 7.3, RESULT_MESSAGE + 'avg'
+@mark.parametrize(
+    'expression, expected_key, expected_value',
+    [
+        ('age=avg', 'avg', 7.3),
+        ('age=min', 'min', 5),
+        ('age=max', 'max', 10),
+    ]
+)
+def test_aggregate_rows_valid(
+    sample_rows, expression, expected_key, expected_value
+):
+    """Тестирование корректных агрегирующих операторов."""
+    actual_value = aggregate_rows(sample_rows, expression)[0][expected_key]
+    if isinstance(expected_value, float):
+        actual_value = round(actual_value, 1)
+    assert actual_value == expected_value, (
+        RESULT_MESSAGE + expression.split('=')[1]
+    )
 
 
-def test_aggregate_rows_min(sample_rows):
-    """Тестирование агрегации с оператором 'min'."""
-    assert aggregate_rows(
-        sample_rows, 'age=min'
-    )[0]['min'] == 5, RESULT_MESSAGE + 'min'
-
-
-def test_aggregate_rows_max(sample_rows):
-    """Тестирование агрегации с оператором 'max'."""
-    assert aggregate_rows(
-        sample_rows, 'age=max'
-    )[0]['max'] == 10, RESULT_MESSAGE + 'max'
-
-
-def test_aggregate_rows_invalid_operator(sample_rows):
-    """Тестирование агрегации с некорректным оператором."""
-    with raises(ConfigurationError):
-        aggregate_rows(sample_rows, 'age=invalid')
-
-
-def test_aggregate_rows_invalid_field(sample_rows):
-    """Тестирование агрегации с несуществующим полем."""
-    with raises(DataValidationError):
-        aggregate_rows(sample_rows, 'invalid_field=avg')
-
-
-def test_aggregate_rows_text_field(sample_rows):
-    """Тестирование агрегации по текстовому полю."""
-    with raises(DataValidationError,):
-        aggregate_rows(sample_rows, 'name=avg')
-
-
-def test_aggregate_rows_invalid_condition_format(sample_rows):
-    """Тестирование агрегации с некорректным форматом условия."""
-    with raises(ConfigurationError):
-        aggregate_rows(sample_rows, 'age')
+@mark.parametrize(
+    'expression, expected_exception',
+    [
+        ('age=invalid', ConfigurationError),
+        ('invalid_field=avg', DataValidationError),
+        ('name=avg', DataValidationError),
+        ('age', ConfigurationError),
+    ]
+)
+def test_aggregate_rows_invalid(sample_rows, expression, expected_exception):
+    """Тестирование ошибочных случаев агрегирования."""
+    with raises(expected_exception):
+        aggregate_rows(sample_rows, expression)

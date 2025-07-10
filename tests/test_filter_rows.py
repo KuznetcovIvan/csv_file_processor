@@ -1,4 +1,4 @@
-from pytest import raises
+from pytest import mark, raises
 
 from main import filter_rows
 from settings.exception import ConfigurationError, DataValidationError
@@ -6,40 +6,31 @@ from settings.exception import ConfigurationError, DataValidationError
 QUANTITY_MESSAGE = 'Неверное количество отфильтрованных строк'
 
 
-def test_filter_rows_greater_than(sample_rows):
-    """Тестирование фильтрации с оператором '>'."""
-    assert len(filter_rows(sample_rows, 'age>5')) == 2, QUANTITY_MESSAGE
+@mark.parametrize(
+    'condition, expected_count',
+    [
+        ('age>5', 2),
+        ('age<10', 2),
+        ('age=10', 1),
+    ]
+)
+def test_filter_rows_valid(sample_rows, condition, expected_count):
+    """Тестирование корректных условий фильтрации."""
+    assert len(filter_rows(sample_rows, condition)) == expected_count, (
+        QUANTITY_MESSAGE
+    )
 
 
-def test_filter_rows_less_than(sample_rows):
-    """Тестирование фильтрации с оператором '<'."""
-    assert len(filter_rows(sample_rows, 'age<10')) == 2, QUANTITY_MESSAGE
-
-
-def test_filter_rows_equal(sample_rows):
-    """Тестирование фильтрации с оператором '='."""
-    assert len(filter_rows(sample_rows, 'age=10')) == 1, QUANTITY_MESSAGE
-
-
-def test_filter_rows_not_exist_field(sample_rows):
-    """Тестирование фильтрации с несуществующим полем."""
-    with raises(DataValidationError):
-        filter_rows(sample_rows, 'invalid_field=10')
-
-
-def test_filter_rows_invalid_condition(sample_rows):
-    """Тестирование фильтрации с некорректным условием."""
-    with raises(ConfigurationError):
-        filter_rows(sample_rows, 'age*10')
-
-
-def test_filter_rows_type_mismatch(sample_rows):
-    """Тестирование фильтрации с несовпадением типов данных."""
-    with raises(DataValidationError):
-        filter_rows(sample_rows, 'name=10')
-
-
-def test_filter_rows_empty_result(sample_rows):
-    """Тестирование фильтрации с пустым результатом."""
-    with raises(DataValidationError):
-        filter_rows(sample_rows, 'age>100')
+@mark.parametrize(
+    'condition, expected_exception',
+    [
+        ('invalid_field=10', DataValidationError),
+        ('age*10', ConfigurationError),
+        ('name=10', DataValidationError),
+        ('age>100', DataValidationError),
+    ]
+)
+def test_filter_rows_invalid(sample_rows, condition, expected_exception):
+    """Тестирование ошибочных условий фильтрации."""
+    with raises(expected_exception):
+        filter_rows(sample_rows, condition)
